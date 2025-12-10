@@ -8,23 +8,24 @@ from PIL import Image
 
 app = FastAPI()
 
-async def capture_scribd_screenshots(url: str):
+MAX_PAGES = 100  # Prevent infinite loops for very large documents
+PAGE_WIDTH = 1200
+PAGE_HEIGHT = 1600
+
+async def capture_scribd_screenshots(url: str, temp_dir: str):
     """
     Capture each Scribd page as an image and return a list of file paths.
-    
-    
     """
-    # C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe
-    # chromium_path = os.getenv("CHROMIUM_PATH")
-    # browser = await launch(headless=True, executablePath=chromium_path, args=['--no-sandbox', '--disable-setuid-sandbox'])
-    
-    browser = await launch(headless=True, args=['--no-sandbox', '--disable-setuid-sandbox'])
+    browser = await launch(
+        headless=True,
+        args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+    )
     page = await browser.newPage()
-    
-    await page.setViewport({'width': 1200, 'height': 1600})
-    
-    await page.goto(url, {'waitUntil': 'networkidle2'})
-    await page.waitForSelector('body')
+    await page.setViewport({'width': PAGE_WIDTH, 'height': PAGE_HEIGHT})
+
+    # Navigate with timeout
+    await page.goto(url, {'waitUntil': 'networkidle2', 'timeout': 30000})
+    await page.waitForSelector('body', {'timeout': 15000})
 
     # Hide sticky toolbar
     await page.evaluate('''() => {
@@ -32,11 +33,10 @@ async def capture_scribd_screenshots(url: str):
         if (toolbar) toolbar.style.display = 'none';
     }''')
 
-    temp_dir = tempfile.mkdtemp()
     screenshots = []
-
     page_number = 1
-    while True:
+
+    while page_number <= MAX_PAGES:
         div_id = f'page{page_number}'
         exists = await page.evaluate(f'''() => {{
             return document.getElementById("{div_id}") !== null;
@@ -44,11 +44,11 @@ async def capture_scribd_screenshots(url: str):
         if not exists:
             break
 
-        # Scroll page into view
+        # Scroll page into view and wait for lazy-loaded images
         await page.evaluate(f'''() => {{
             document.getElementById("{div_id}").scrollIntoView();
         }}''')
-        await asyncio.sleep(1)  # wait for lazy-loaded images
+        await asyncio.sleep(1)
 
         # Get bounding box
         bounding_box = await page.evaluate(f'''() => {{
@@ -73,7 +73,9 @@ async def capture_scribd_screenshots(url: str):
     return screenshots
 
 def images_to_pdf(image_paths, output_path):
-   
+    """
+    Convert list of images to a single PDF.
+    """
     if not image_paths:
         return None
     images = [Image.open(p).convert('RGB') for p in image_paths]
@@ -85,13 +87,22 @@ async def get_scribd_pdf(url: str):
     """
     Capture all Scribd pages as screenshots and return a PDF.
     """
-    screenshots = await capture_scribd_screenshots(url)
-    if not screenshots:
-        return {"error": "No pages found"}
+    try:
+        # Single temporary directory for screenshots and PDF
+        temp_dir = tempfile.mkdtemp()
 
-    temp_dir = tempfile.mkdtemp()
-    pdf_path = os.path.join(temp_dir, "scribd_document.pdf")
-    images_to_pdf(screenshots, pdf_path)
-    return FileResponse(pdf_path, media_type="application/pdf", filename="scribd_document.pdf")
+        screenshots = await capture_scribd_screenshots(url, temp_dir)
+        if not screenshots:
+            return {"error": "No pages found"}
 
+        pdf_path = os.path.join(temp_dir, "scribd_document.pdf")
+        images_to_pdf(screenshots, pdf_path)
 
+        return FileResponse(
+            pdf_path,
+            media_type="application/pdf",
+            filename="scribd_document.pdf"
+        )
+
+    except Exception as e:
+        return {"error": f"Failed to generate PDF: {str(e)}"}
