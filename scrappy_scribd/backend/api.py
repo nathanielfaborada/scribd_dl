@@ -11,8 +11,14 @@ app = FastAPI()
 async def capture_scribd_screenshots(url: str):
     """
     Capture each Scribd page as an image and return a list of file paths.
+    
+    
     """
-    browser = await launch(headless=True, executablePath="C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe", args=['--no-sandbox', '--disable-setuid-sandbox'])
+    # C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe
+    # chromium_path = os.getenv("CHROMIUM_PATH")
+    # browser = await launch(headless=True, executablePath=chromium_path, args=['--no-sandbox', '--disable-setuid-sandbox'])
+    
+    browser = await launch(headless=True, args=['--no-sandbox', '--disable-setuid-sandbox'])
     page = await browser.newPage()
     
     await page.setViewport({'width': 1200, 'height': 1600})
