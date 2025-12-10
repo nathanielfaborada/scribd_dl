@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Scribd DL</title>
+
+    <!-- Tailwind -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <!-- CRT Screen Effect -->
+    <div
+      class="fixed inset-0 pointer-events-none"
+      style="
+        background: radial-gradient(
+          circle,
+          transparent 70%,
+          rgba(41, 97, 131, 0.5) 100%
+        );
+        z-index: 100;
+      "
+    ></div>
+
+    <!-- Header -->
+    <header class="container mx-auto px-4 py-8">
+      <div
+        class="flex flex-col md:flex-row items-center justify-between retro-border p-6 bg-opacity-90"
+      >
+        <div class="text-center md:text-left mb-6 md:mb-0">
+          <h1
+            class="retro-title text-4xl md:text-6xl mb-2 glitch"
+            data-text="Scribd DOWNLOADER"
+          >
+            Scribd DOWNLOADER
+          </h1>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+      <div
+        class="flex flex-col md:flex-row items-center gap-3 w-full md:w-3/4 mx-auto"
+      >
+        <input
+            id="placeInput"
+            type="text"
+            placeholder="Enter link (e.g., https://www.scribd.com/document/123456789/Example-Document)"
+            class="w-full md:flex-1 px-4 py-3 rounded-md text-black 
+                    border-2 border-gray-300 focus:border-pink-500
+                    focus:outline-none focus:ring-2 focus:ring-pink-500"
+            />
+        <button
+            id="submitBtn"
+            class="w-full md:w-auto px-6 py-3 bg-pink-600 text-white rounded-md 
+                hover:bg-pink-700 active:scale-95 transition font-semibold"
+        >
+            Submit
+        </button>
+      </div>
+      
+
+      <!-- Display Results yung mga images or page na nascreenshot -->
+      <div
+        id="result"
+        class="flex flex-col overflow-x-auto gap-4 pb-4 snap-x snap-mandatory"
+      >
+        <!-- JS will inject the image here -->
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="container mx-auto px-4 py-8">
+      <p class="mb-2">© 2025</p>
+      <p class="text-sm text-gray-400">
+        <i class="fas fa-plane text-pink-500"></i>
+        <i class="fas fa-building text-pink-500"></i>
+        <i class="fas fa-building text-pink-500"></i>
+        Designed by Faborada Nathaniel
+      </p>
+    </footer>
+  </body>
+</html>
