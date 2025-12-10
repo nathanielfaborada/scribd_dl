@@ -3,27 +3,38 @@ import os
 import tempfile
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
-from pyppeteer import launch
+from pyppeteer import launch, executablePath
 from PIL import Image
 
 app = FastAPI()
 
-MAX_PAGES = 100  # Prevent infinite loops for very large documents
-PAGE_WIDTH = 1200
-PAGE_HEIGHT = 1600
+# Configuration
+MAX_PAGES = 50         # Max pages to capture
+VIEWPORT_WIDTH = 1024  # Smaller viewport for less memory
+VIEWPORT_HEIGHT = 1200
 
 async def capture_scribd_screenshots(url: str, temp_dir: str):
     """
     Capture each Scribd page as an image and return a list of file paths.
     """
+    print("Launching browser...")
     browser = await launch(
         headless=True,
-        args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+        executablePath=executablePath(),  # Use bundled Chromium
+        args=[
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',  # critical on cloud
+            '--single-process',          # reduce memory usage
+            '--disable-gpu'
+        ]
     )
-    page = await browser.newPage()
-    await page.setViewport({'width': PAGE_WIDTH, 'height': PAGE_HEIGHT})
+    print("Browser launched successfully")
 
-    # Navigate with timeout
+    page = await browser.newPage()
+    await page.setViewport({'width': VIEWPORT_WIDTH, 'height': VIEWPORT_HEIGHT})
+
+    # Navigate to URL with timeout
     await page.goto(url, {'waitUntil': 'networkidle2', 'timeout': 30000})
     await page.waitForSelector('body', {'timeout': 15000})
 
@@ -44,11 +55,11 @@ async def capture_scribd_screenshots(url: str, temp_dir: str):
         if not exists:
             break
 
-        # Scroll page into view and wait for lazy-loaded images
+        # Scroll into view and wait briefly
         await page.evaluate(f'''() => {{
             document.getElementById("{div_id}").scrollIntoView();
         }}''')
-        await asyncio.sleep(1)
+        await asyncio.sleep(0.5)  # shorter sleep for memory
 
         # Get bounding box
         bounding_box = await page.evaluate(f'''() => {{
@@ -85,13 +96,12 @@ def images_to_pdf(image_paths, output_path):
 @app.get("/pdf")
 async def get_scribd_pdf(url: str):
     """
-    Capture all Scribd pages as screenshots and return a PDF.
+    Capture Scribd pages and return PDF.
     """
     try:
-        # Single temporary directory for screenshots and PDF
         temp_dir = tempfile.mkdtemp()
-
         screenshots = await capture_scribd_screenshots(url, temp_dir)
+
         if not screenshots:
             return {"error": "No pages found"}
 
