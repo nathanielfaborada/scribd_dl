@@ -1,4 +1,3 @@
 fastapi
-uvicorn
-pyppeteer
-Pillow
+uvicorn[standard]
+playwright
