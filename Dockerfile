@@ -1,4 +1,6 @@
 FROM python:3.13-slim
+# USE PLAYWRIGHT FULL IMAGE (includes Chromium + deps)
+FROM mcr.microsoft.com/playwright/python:v1.48.0-jammy
 
 WORKDIR /app
 
@@ -15,8 +17,10 @@ RUN playwright install chromium
 # Copy backend code
 COPY src/ .
 
-# Expose port
-EXPOSE 8080
 
-# Run FastAPI using Railway PORT
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
+# Expose port for Railway
+ENV PORT=8000
+EXPOSE 8000
+
+# Start FastAPI
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
