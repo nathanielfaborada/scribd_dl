@@ -1,5 +1,3 @@
-# backend/main.py
-
 import asyncio
 import os
 import tempfile
@@ -14,10 +12,6 @@ app = FastAPI(title="Scribd Screenshot Downloader (Playwright)")
 # Screenshot logic
 # -----------------------------
 async def capture_scribd_screenshots(url: str):
-    """
-    Capture each Scribd page as an image and return a list of file paths.
-    Uses Playwright (Chromium) for better container support.
-    """
     temp_dir = tempfile.mkdtemp()
     screenshots = []
 
@@ -26,7 +20,7 @@ async def capture_scribd_screenshots(url: str):
         page = await browser.new_page(viewport={"width": 800, "height": 1000})
         await page.goto(url, wait_until="networkidle")
 
-        # Hide sticky toolbar if it exists
+        # Hide sticky toolbar
         await page.evaluate('''() => {
             const toolbar = document.querySelector('[data-testid="sticky-wrapper"]');
             if (toolbar) toolbar.style.display = 'none';
@@ -39,9 +33,8 @@ async def capture_scribd_screenshots(url: str):
             if not exists:
                 break
 
-            # Scroll into view
             await page.evaluate(f'document.getElementById("{div_id}").scrollIntoView()')
-            await asyncio.sleep(1)  # wait for lazy-loaded images
+            await asyncio.sleep(1)
 
             bounding_box = await page.evaluate(f'''
                 () => {{
@@ -69,7 +62,6 @@ async def capture_scribd_screenshots(url: str):
 
 
 def create_zip(file_paths, output_path):
-    """Zip all image files into a single archive."""
     with zipfile.ZipFile(output_path, "w") as zipf:
         for file_path in file_paths:
             zipf.write(file_path, os.path.basename(file_path))
@@ -80,10 +72,7 @@ def create_zip(file_paths, output_path):
 # FastAPI endpoint
 # -----------------------------
 @app.get("/screenshots")
-async def get_scribd_screenshots(url: str = Query(..., description="Scribd document URL")):
-    """
-    Capture all Scribd pages as screenshots and return a ZIP file.
-    """
+async def get_scribd_screenshots(url: str = Query(...)):
     try:
         screenshots = await capture_scribd_screenshots(url)
         if not screenshots:
