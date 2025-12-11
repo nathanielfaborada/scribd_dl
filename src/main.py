@@ -14,15 +14,14 @@ app = FastAPI(title="Scribd Screenshot Downloader")
 # Download Chromium once at startup
 # -----------------------------
 CHROMIUM_PATH = chromium_downloader.download_chromium()
+browser = None  # Global browser instance
 
 # -----------------------------
-# Utility functions
+# Startup / Shutdown events
 # -----------------------------
-async def capture_scribd_screenshots(url: str):
-    """
-    Capture each Scribd page as an image and return a list of file paths.
-    Reuses the same Chromium installation.
-    """
+@app.on_event("startup")
+async def startup_event():
+    global browser
     browser = await launch(
         headless=True,
         executablePath=CHROMIUM_PATH,
@@ -35,6 +34,28 @@ async def capture_scribd_screenshots(url: str):
             "--disable-software-rasterizer"
         ]
     )
+    print("Persistent Chromium browser started.")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    global browser
+    if browser:
+        await browser.close()
+        print("Browser closed on shutdown.")
+
+
+# -----------------------------
+# Utility functions
+# -----------------------------
+async def capture_scribd_screenshots(url: str):
+    """
+    Capture each Scribd page as an image and return a list of file paths.
+    Uses the global persistent browser instance.
+    """
+    global browser
+    if not browser:
+        raise RuntimeError("Browser not started")
 
     page = await browser.newPage()
     await page.setViewport({'width': 800, 'height': 1000})
@@ -83,8 +104,9 @@ async def capture_scribd_screenshots(url: str):
         screenshots.append(screenshot_path)
         page_number += 1
 
-    await browser.close()
+    await page.close()  # Close only the page, not the browser
     return screenshots
+
 
 def create_zip(file_paths, output_path):
     """
@@ -94,6 +116,7 @@ def create_zip(file_paths, output_path):
         for file_path in file_paths:
             zipf.write(file_path, os.path.basename(file_path))
     return output_path
+
 
 # -----------------------------
 # FastAPI endpoint
