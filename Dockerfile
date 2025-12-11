@@ -2,8 +2,10 @@ FROM python:3.13-slim
 
 WORKDIR /app
 
-# Copy requirements and install
-COPY backend/requirements.txt .
+# Copy requirements
+COPY src/requirements.txt .
+
+# Install dependencies
 RUN pip install --no-cache-dir --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -17,4 +19,4 @@ COPY src/ .
 EXPOSE 8080
 
 # Run FastAPI using Railway PORT
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
