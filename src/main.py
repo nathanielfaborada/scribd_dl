@@ -3,12 +3,12 @@
 import asyncio
 import os
 import tempfile
+import zipfile
 from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse
 from pyppeteer import launch, chromium_downloader
-from PIL import Image
 
-app = FastAPI(title="Scribd PDF Generator")
+app = FastAPI(title="Scribd Screenshot Downloader")
 
 # -----------------------------
 # Utility functions
@@ -85,24 +85,23 @@ async def capture_scribd_screenshots(url: str):
     return screenshots
 
 
-def images_to_pdf(image_paths, output_path):
+def create_zip(file_paths, output_path):
     """
-    Convert a list of images to a single PDF.
+    Zip all image files into a single archive.
     """
-    if not image_paths:
-        return None
-    images = [Image.open(p).convert('RGB') for p in image_paths]
-    images[0].save(output_path, save_all=True, append_images=images[1:])
+    with zipfile.ZipFile(output_path, 'w') as zipf:
+        for file_path in file_paths:
+            zipf.write(file_path, os.path.basename(file_path))
     return output_path
 
 
 # -----------------------------
 # FastAPI endpoints
 # -----------------------------
-@app.get("/pdf")
-async def get_scribd_pdf(url: str = Query(..., description="Scribd document URL")):
+@app.get("/screenshots")
+async def get_scribd_screenshots(url: str = Query(..., description="Scribd document URL")):
     """
-    Capture all Scribd pages as screenshots and return a PDF.
+    Capture all Scribd pages as screenshots and return a ZIP file.
     """
     try:
         screenshots = await capture_scribd_screenshots(url)
@@ -110,13 +109,13 @@ async def get_scribd_pdf(url: str = Query(..., description="Scribd document URL"
             return {"error": "No pages found"}
 
         temp_dir = tempfile.mkdtemp()
-        pdf_path = os.path.join(temp_dir, "scribd_document.pdf")
-        images_to_pdf(screenshots, pdf_path)
+        zip_path = os.path.join(temp_dir, "scribd_screenshots.zip")
+        create_zip(screenshots, zip_path)
 
         return FileResponse(
-            pdf_path,
-            media_type="application/pdf",
-            filename="scribd_document.pdf"
+            zip_path,
+            media_type="application/zip",
+            filename="scribd_screenshots.zip"
         )
     except Exception as e:
-        return {"error": f"Failed to generate PDF: {str(e)}"}
+        return {"error": f"Failed to capture screenshots: {str(e)}"}
