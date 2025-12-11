@@ -5,7 +5,7 @@ import os
 import tempfile
 from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse
-from pyppeteer import launch
+from pyppeteer import launch, chromium_downloader
 from PIL import Image
 
 app = FastAPI(title="Scribd PDF Generator")
@@ -16,8 +16,11 @@ app = FastAPI(title="Scribd PDF Generator")
 async def capture_scribd_screenshots(url: str):
     """
     Capture each Scribd page as an image and return a list of file paths.
-    Works on Linux (Railway) using headless Chromium.
+    Fully Linux-compatible for Railway deployment.
     """
+
+    # Ensure Chromium is downloaded inside container
+    chromium_downloader.download_chromium()
 
     browser = await launch(
         headless=True,
@@ -25,11 +28,14 @@ async def capture_scribd_screenshots(url: str):
             "--no-sandbox",
             "--disable-setuid-sandbox",
             "--disable-dev-shm-usage",
-            "--single-process"
+            "--single-process",
+            "--disable-gpu",
+            "--disable-software-rasterizer"
         ]
     )
+
     page = await browser.newPage()
-    await page.setViewport({'width': 1200, 'height': 1600})
+    await page.setViewport({'width': 800, 'height': 1000})  # smaller viewport to save memory
     await page.goto(url, {'waitUntil': 'networkidle2'})
     await page.waitForSelector('body')
 
@@ -57,7 +63,6 @@ async def capture_scribd_screenshots(url: str):
         }}''')
         await asyncio.sleep(1)  # wait for lazy-loaded images
 
-        # Get bounding box
         bounding_box = await page.evaluate(f'''() => {{
             const rect = document.getElementById("{div_id}").getBoundingClientRect();
             return {{x: rect.left, y: rect.top + window.scrollY, width: rect.width, height: rect.height}};
@@ -82,7 +87,7 @@ async def capture_scribd_screenshots(url: str):
 
 def images_to_pdf(image_paths, output_path):
     """
-    Convert a list of image paths to a single PDF.
+    Convert a list of images to a single PDF.
     """
     if not image_paths:
         return None
@@ -115,4 +120,3 @@ async def get_scribd_pdf(url: str = Query(..., description="Scribd document URL"
         )
     except Exception as e:
         return {"error": f"Failed to generate PDF: {str(e)}"}
-
