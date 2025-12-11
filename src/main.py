@@ -11,19 +11,21 @@ from pyppeteer import launch, chromium_downloader
 app = FastAPI(title="Scribd Screenshot Downloader")
 
 # -----------------------------
+# Download Chromium once at startup
+# -----------------------------
+CHROMIUM_PATH = chromium_downloader.download_chromium()
+
+# -----------------------------
 # Utility functions
 # -----------------------------
 async def capture_scribd_screenshots(url: str):
     """
     Capture each Scribd page as an image and return a list of file paths.
-    Fully Linux-compatible for Railway deployment.
+    Reuses the same Chromium installation.
     """
-
-    # Ensure Chromium is downloaded inside container
-    chromium_downloader.download_chromium()
-
     browser = await launch(
         headless=True,
+        executablePath=CHROMIUM_PATH,
         args=[
             "--no-sandbox",
             "--disable-setuid-sandbox",
@@ -35,7 +37,7 @@ async def capture_scribd_screenshots(url: str):
     )
 
     page = await browser.newPage()
-    await page.setViewport({'width': 800, 'height': 1000})  # smaller viewport to save memory
+    await page.setViewport({'width': 800, 'height': 1000})
     await page.goto(url, {'waitUntil': 'networkidle2'})
     await page.waitForSelector('body')
 
@@ -84,7 +86,6 @@ async def capture_scribd_screenshots(url: str):
     await browser.close()
     return screenshots
 
-
 def create_zip(file_paths, output_path):
     """
     Zip all image files into a single archive.
@@ -94,9 +95,8 @@ def create_zip(file_paths, output_path):
             zipf.write(file_path, os.path.basename(file_path))
     return output_path
 
-
 # -----------------------------
-# FastAPI endpoints
+# FastAPI endpoint
 # -----------------------------
 @app.get("/screenshots")
 async def get_scribd_screenshots(url: str = Query(..., description="Scribd document URL")):
